@@ -11,7 +11,8 @@ export default function Signup() {
 
   const handleSignup = async (e) => {
     e.preventDefault()
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
+    console.log(email, password)
+    const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -20,7 +21,7 @@ export default function Signup() {
       alert('Signup successful. Please log in.')
       router.push('/login')
     } else {
-      alert('Signup failed')
+      alert(res.statusText)
     }
   }
 

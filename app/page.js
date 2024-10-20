@@ -1,4 +1,3 @@
-// File: app/page.js
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -10,6 +9,10 @@ export default function Home() {
   const [priority, setPriority] = useState('medium')
   const [dueDate, setDueDate] = useState('')
   const [token, setToken] = useState('')
+  const [isEditing, setIsEditing] = useState(null)
+  const [editText, setEditText] = useState('')
+  const [editPriority, setEditPriority] = useState('medium')
+  const [editDueDate, setEditDueDate] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -47,10 +50,12 @@ export default function Home() {
       body: JSON.stringify({ text: newTodo, priority, dueDate }),
     })
     const data = await res.json()
-    setTodos([...todos, data])
-    setNewTodo('')
-    setPriority('medium')
-    setDueDate('')
+    if (data) {
+      setTodos([...todos, data])
+      setNewTodo('')
+      setPriority('medium')
+      setDueDate('')
+    }
   }
 
   const toggleTodo = async (id) => {
@@ -74,6 +79,41 @@ export default function Home() {
     })
     setTodos(todos.filter((t) => t._id !== id))
   }
+
+  const startEditing = (todo) => {
+    setIsEditing(todo._id);
+    setEditText(todo.text);
+    setEditPriority(todo.priority);
+    setEditDueDate(todo.dueDate);
+  };
+
+  const handleUpdate = async (e, id) => {
+    e.preventDefault();
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/todos/${id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        text: editText,
+        priority: editPriority,
+        dueDate: editDueDate,
+        completed: false // Maintain the completed status or set it accordingly
+      }),
+    });
+
+    if (res.ok) {
+      const updatedTodo = await res.json();
+      setTodos(todos.map((t) => (t._id === id ? updatedTodo : t)));
+      setIsEditing(null); // Reset editing state
+      setEditText('');
+      setEditPriority('medium');
+      setEditDueDate('');
+    } else {
+      console.error('Update failed:', await res.json());
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -120,28 +160,59 @@ export default function Home() {
         </button>
       </form>
       <ul>
-        {todos.map((todo) => (
-          <li
-            key={todo._id}
-            className="flex items-center justify-between border-b border-gray-200 py-4"
-          >
-            <div className="flex items-center">
+      {todos.map((todo) => (
+          <li key={todo._id} className="flex items-center justify-between border-b border-gray-200 py-4">
+            <div className="flex items-center flex-grow">
               <input
                 type="checkbox"
                 checked={todo.completed}
                 onChange={() => toggleTodo(todo._id)}
                 className="mr-4"
               />
-              <span className={todo.completed ? 'line-through' : ''}>
-                {todo.text} - Priority: {todo.priority}, Due: {new Date(todo.dueDate).toLocaleDateString()}
-              </span>
+              {isEditing === todo._id ? (
+                <form onSubmit={(e) => handleUpdate(e, todo._id)} className="flex-grow">
+                  <input
+                    type="text"
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="border border-gray-300 rounded px-2 py-1 mr-2"
+                  />
+                  <select
+                    value={editPriority}
+                    onChange={(e) => setEditPriority(e.target.value)}
+                    className="border border-gray-300 rounded px-2 py-1 mr-2"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="border border-gray-300 rounded px-2 py-1 mr-2"
+                  />
+                  <button type="submit" className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">
+                    Save
+                  </button>
+                  <button type="button" onClick={() => setIsEditing(null)} className="ml-2 text-gray-500 hover:text-gray-700">
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <span className={`flex-grow ${todo.completed ? 'line-through' : ''}`}>
+                  {todo.text} - Priority: {todo.priority}, Due: {new Date(todo.dueDate).toLocaleDateString()}
+                </span>
+              )}
             </div>
-            <button
-              onClick={() => deleteTodo(todo._id)}
-              className="text-red-500 hover:text-red-700"
-            >
-              Delete
-            </button>
+            <div className="flex items-center">
+              <button onClick={() => startEditing(todo)} className="text-blue-500 hover:text-blue-700 mr-2">
+                Edit
+              </button>
+              <button onClick={() => deleteTodo(todo._id)} className="text-red-500 hover:text-red-700">
+                Delete
+              </button>
+            </div>
           </li>
         ))}
       </ul>
